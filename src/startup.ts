@@ -3,7 +3,7 @@ import { buildServer } from './http/server'
 import { buildWebSocket } from './ws/websocket'
 
 import { buildHealthController } from './http/controllers/health-controller'
-import { buildDocumentLastSavedController } from './http/controllers/document-get-last-saved-controller'
+import { buildGetDocumentLastSavedController } from './http/controllers/get-document-last-save-controller'
 
 import { Program } from './program'
 
@@ -13,7 +13,7 @@ import { Program } from './program'
  */
 export const buildProgram = () => {
     const healthController = buildHealthController()
-    const documentLastSavedController = buildDocumentLastSavedController()
+    const documentLastSavedController = buildGetDocumentLastSavedController()
 
     const server = buildServer(healthController, documentLastSavedController)
     const webSocket = buildWebSocket(server)
