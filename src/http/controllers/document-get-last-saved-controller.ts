@@ -25,6 +25,7 @@ export const buildDocumentLastSavedController = () => {
             return
         }
 
+        // TODO: implement correct handling
         response.writeHead(200, CONTENT_TYPE_HEADERS)
         response.end(JSON.stringify({ lastSaved: 1708050788 }))
     }
