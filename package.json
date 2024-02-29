@@ -9,6 +9,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@azure/cosmos": "^4.0.0",
     "ws": "^8.16.0",
     "y-websocket": "^1.5.3",
     "yjs": "^13.6.12"

@@ -3,7 +3,6 @@ import { buildServer } from './http/server'
 import { buildWebSocket } from './ws/websocket'
 
 import { buildHealthController } from './http/controllers/health-controller'
-import { buildGetDocumentLastSavedController } from './http/controllers/get-document-last-save-controller'
 
 import { Program } from './program'
 
@@ -13,9 +12,8 @@ import { Program } from './program'
  */
 export const buildProgram = () => {
     const healthController = buildHealthController()
-    const documentLastSavedController = buildGetDocumentLastSavedController()
 
-    const server = buildServer(healthController, documentLastSavedController)
+    const server = buildServer(healthController)
     const webSocket = buildWebSocket(server)
 
     const port = parseInt(process.env.PORT || '4000')
