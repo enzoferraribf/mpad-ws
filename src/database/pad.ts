@@ -1,9 +1,5 @@
-import { CosmosClient } from '@azure/cosmos'
+import { createClient } from '@libsql/client'
 
-const client = new CosmosClient(process.env.COSMOS_DB_CONNECTION_STRING!)
+const turso = createClient({ url: process.env.TURSO_DB!, authToken: process.env.TURSO_TOKEN! })
 
-const database = client.database('mpad')
-
-const container = database.container('pads')
-
-export { container }
+export const database = turso

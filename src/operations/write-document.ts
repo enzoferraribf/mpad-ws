@@ -1,17 +1,13 @@
-import { encodeStateAsUpdateV2, type Doc } from 'yjs'
-
 import type { Operation } from '.'
 
-import type { Pad } from '../models/Pad'
-
-import { container } from '../database/pad'
+import { database } from '../database/pad'
 
 export interface WriteDocumentRequest {
     /** The document identifier */
     name: string
 
     /** The data object representing the document's current state */
-    document: Doc
+    document: any
 }
 
 export interface WriteDocumentResponse {
@@ -22,63 +18,42 @@ export interface WriteDocumentResponse {
     reason?: string
 }
 
-const cache = new Map<string, Array<number>>()
+export const buildWriteDocument = (encodeStateAsUpdateV2: (document: any) => Uint8Array) => {
+    const cache = new Map<string, string>()
 
-/** Writes the given document version in the storage layer */
-const writeDocumentOperation: Operation<WriteDocumentRequest, WriteDocumentResponse> = async (request) => {
-    const { name, document } = request
+    /** Writes the given document version in the storage layer */
+    const writeDocumentOperation: Operation<WriteDocumentRequest, WriteDocumentResponse> = async (request) => {
+        const { name, document } = request
 
-    const root = extractRoot(name)
+        const root = extractRoot(name)
 
-    const version = Array.from(encodeStateAsUpdateV2(document))
+        const text = document.getText('monaco').toString()
 
-    if (cache.has(name) && cache.get(name)!.every((value, index) => value === version[index])) {
-        return { name, success: true, reason: 'no changes' }
+        if (cache.has(name) && cache.get(name) === text) return { name, success: true, reason: 'noop' }
+
+        const content = encodeStateAsUpdateV2(document)
+
+        const csvContent = content.join(',')
+
+        const lastUpdate = Date.now()
+
+        await database.execute({
+            sql: 'INSERT INTO pads (id, content, root, last_update) VALUES ($id, $content, $root, $lastUpdate) ON CONFLICT DO UPDATE SET content = $content, root = $root, last_update = $lastUpdate',
+            args: { id: name, content: csvContent, root: root, lastUpdate: lastUpdate },
+        })
+
+        cache.set(name, text)
+
+        return { name, success: true, reason: 'success' }
     }
 
-    type PadUpsert = Omit<Pad, '_ts'>
-
-    const changeset: PadUpsert = {
-        root,
-        document: name,
-        content: version,
+    const writeDocument: Operation<WriteDocumentRequest, WriteDocumentResponse> = async (request) => {
+        return writeDocumentOperation(request)
+            .then((response) => response)
+            .catch((error) => ({ name: request.name, success: false, reason: error.message }))
     }
 
-    const sql = 'SELECT c.id, c.versions FROM c WHERE c.document = @document'
-
-    const query = {
-        query: sql,
-        parameters: [
-            {
-                name: '@document',
-                value: name,
-            },
-        ],
-    }
-
-    type Container = Pick<Pad, 'id'>
-
-    const feed = await container.items.query<Container>(query).fetchAll()
-
-    const hasAnyResult = feed.resources && feed.resources.length > 0
-
-    if (hasAnyResult) {
-        const [{ id }] = feed.resources
-
-        changeset.id = id
-    }
-
-    await container.items.upsert<PadUpsert>(changeset)
-
-    cache.set(name, version)
-
-    return { name, success: true, reason: 'success' }
-}
-
-export const writeDocument: Operation<WriteDocumentRequest, WriteDocumentResponse> = async (request) => {
-    return writeDocumentOperation(request)
-        .then((response) => response)
-        .catch((error) => ({ name: request.name, success: false, reason: error.message }))
+    return writeDocument
 }
 
 function extractRoot(name: string) {
