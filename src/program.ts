@@ -1,10 +1,11 @@
 import http from 'http'
 import WebSocket from 'ws'
 
-import { docs } from 'y-websocket/bin/utils'
+const { encodeStateAsUpdateV2 } = require('yjs')
 
-import type { Operation } from './operations'
-import { type WriteDocumentRequest, type WriteDocumentResponse } from './operations/write-document'
+import type { WriteDocumentRequest } from './workers/save-document'
+
+import { docs } from 'y-websocket/bin/utils'
 
 export interface IProgramOptions {
     port: number
@@ -14,7 +15,7 @@ export interface IProgramOptions {
 export class Program {
     private readonly server: http.Server
     private readonly webSocket: WebSocket.Server
-    private readonly writeDocument: Operation<WriteDocumentRequest, WriteDocumentResponse>
+    private readonly writeDocumentWorker: Worker
     private readonly options: IProgramOptions
 
     /**
@@ -23,10 +24,10 @@ export class Program {
      * @param webSocket The webSocket attached to the http server
      * @param options The program configuration
      */
-    constructor(server: http.Server, webSocket: WebSocket.Server, writeDocument: Operation<WriteDocumentRequest, WriteDocumentResponse>, options: IProgramOptions) {
+    constructor(server: http.Server, webSocket: WebSocket.Server, writeDocumentWorker: Worker, options: IProgramOptions) {
         this.server = server
         this.webSocket = webSocket
-        this.writeDocument = writeDocument
+        this.writeDocumentWorker = writeDocumentWorker
         this.options = options
     }
 
@@ -34,29 +35,23 @@ export class Program {
         setInterval(this.autoSave, 5_000)
 
         this.server.listen(this.options.port, this.options.host)
+
+        this.writeDocumentWorker.addEventListener('message', (message) => console.log(message))
     }
 
     private autoSave = async () => {
-        const map = docs as Map<string, never>
-
-        const promises: Promise<WriteDocumentResponse>[] = new Array(map.size)
+        const map = docs as Map<string, any>
 
         for (const [name, document] of map) {
             if (!name) continue
 
-            const request: WriteDocumentRequest = { name, document }
+            const text = document.getText('monaco').toString()
 
-            const promise = this.writeDocument(request)
+            const state = encodeStateAsUpdateV2(document)
 
-            promises.push(promise)
-        }
+            const request: WriteDocumentRequest = { name, text, state }
 
-        const responses = await Promise.all(promises)
-
-        for (const response of responses) {
-            if (!response) continue
-
-            console.log(`Request for document: ${response?.name} has succeed: ${response?.success} with reason: ${response?.reason}`)
+            this.writeDocumentWorker.postMessage(request)
         }
     }
 }
