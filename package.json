@@ -1,16 +1,11 @@
 {
   "name": "mpad-ws",
   "module": "src/index.ts",
-  "type": "module",
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.3.3"
   },
-  "dependencies": {
-    "@libsql/client": "^0.5.2",
-    "ws": "^8.16.0",
-    "y-websocket": "^1.5.4"
-  }
+  "type": "module"
 }

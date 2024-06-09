@@ -1,5 +1,3 @@
-import { buildProgram } from './startup'
+import { runProgram } from './startup'
 
-const program = buildProgram()
-
-program.run()
+runProgram()
